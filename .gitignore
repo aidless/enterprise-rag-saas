@@ -1,0 +1,25 @@
+# Python
+__pycache__/
+*.pyc
+*.egg-info/
+dist/
+venv/
+.env
+
+# IDE
+.vscode/
+.idea/
+*.swp
+
+# Data & Temp
+data/
+temp/
+*.db
+*.sqlite3
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Docker
+docker-compose.override.yml
