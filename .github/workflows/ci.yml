@@ -53,3 +53,53 @@ jobs:
               sys.exit(1)
           print('all relative Markdown links resolve')
           PY
+  mutation-control:
+    name: The byte-compile gate can fail
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+      - name: Break one tracked Python file and require a non-zero exit
+        run: |
+          set -euo pipefail
+          # The reverse control has to show two things, or it shows nothing: that the
+          # gate passes when the tree is clean, and that it fails after the corruption.
+          # Checking only the second is satisfied by anything that exits non-zero,
+          # including "python: command not found" — an earlier version of this file did
+          # exactly that and reported OK for a gate it never ran.
+          echo "--- baseline: the gate must pass on the clean tree ---"
+          if ! bash -c '
+            set -uo pipefail
+            if git ls-files "*.py" | grep -q .; then
+              python -m compileall -q .
+            else
+              echo "no Python sources tracked"
+            fi
+          '; then
+            echo "FAIL: the byte-compile gate is already red on an unmodified checkout,"
+            echo "      so a failure after corrupting a file would prove nothing"
+            exit 1
+          fi
+          echo "baseline passed"
+
+          target=$(git ls-files '*.py' | head -1)
+          if [ -z "$target" ]; then
+            echo "no Python sources tracked, so there is nothing to corrupt"
+            exit 0
+          fi
+          echo "--- corrupting $target ---"
+          printf '\n\ndef __mutation_control__(:\n' >> "$target"
+          if bash -c '
+            set -uo pipefail
+            if git ls-files "*.py" | grep -q .; then
+              python -m compileall -q .
+            else
+              echo "no Python sources tracked"
+            fi
+          '; then
+            echo "FAIL: the byte-compile gate accepted a file with a syntax error"
+            exit 1
+          fi
+          echo "OK: the byte-compile gate rejected the corrupted file"
