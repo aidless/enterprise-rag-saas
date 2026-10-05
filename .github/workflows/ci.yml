@@ -20,7 +20,18 @@ jobs:
         with:
           python-version: "3.12"
       - name: Byte-compile every tracked Python file
-        run: python -m compileall -q . || echo "no Python sources tracked"
+        # The first version ran `compileall -q . || echo "no Python sources tracked"`,
+        # which cannot fail: a syntax error in any tracked file was reported and then
+        # swallowed, and the message claimed there were no Python sources when the
+        # repository has hundreds. These repositories do have sources, so the || branch
+        # is now reserved for the case it describes.
+        run: |
+          set -uo pipefail
+          if git ls-files '*.py' | grep -q .; then
+            python -m compileall -q .
+          else
+            echo "no Python sources tracked"
+          fi
       - name: Check that every relative Markdown link resolves
         run: |
           python - <<'PY'
